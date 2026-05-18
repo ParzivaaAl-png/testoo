@@ -700,6 +700,12 @@ function parseDocxHtml(html, subject) {
   const sConfig = SUBJECTS.find(s => s.name === subject);
   const isFirstCorrect = sConfig && sConfig.parser === 'docx_first_correct';
 
+  if (isFirstCorrect) {
+      // Convert list items to variants for questions that use numbered lists instead of explicit <variant> tags
+      html = html.replace(/<(ol|ul)[^>]*>/gi, '').replace(/<\/(ol|ul)>/gi, '');
+      html = html.replace(/<li[^>]*>/gi, '<p>&lt;variant&gt; ').replace(/<\/li>/gi, '</p>');
+  }
+
   // Fix for soft newlines in Word combining tags into a single paragraph
   html = html.replace(/<br\s*\/?>/gi, '</p><p>');
 
