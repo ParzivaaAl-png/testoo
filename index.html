@@ -270,7 +270,12 @@ body::before{
   border-radius:16px;box-shadow:var(--shadow);
   width:100%;max-width:500px;padding:26px;
   animation:slideUp .25s cubic-bezier(.4,0,.2,1);
+  max-height:90vh;
+  overflow-y:auto;
 }
+.modal-card::-webkit-scrollbar { width: 6px; }
+.modal-card::-webkit-scrollbar-track { background: transparent; }
+.modal-card::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 
 .modal-logo{
@@ -480,6 +485,7 @@ const SUBJECTS = [
   { name: 'Инновации ИС',     file: 'Инно ИС для подготовки.docx',  icon: '💡',  desc: 'Инновационные информационные системы, подготовка', parser: 'gift' },
   { name: 'Java EE (SFT6312)',file: 'java_ee_questions.txt',         icon: '☕',  desc: 'JPA, Spring Boot, JAX-WS, JAX-RS, Security' },
   { name: 'Мультимедиа',      file: 'мультимедия.docx',              icon: '🎬',  desc: 'Коммуникация, модели, сигналы' },
+  { name: 'ОЗ',               file: 'пустой доком111.docx',          icon: '📄',  desc: 'Тест по Общественному здоровью', parser: 'docx_first_correct' },
 ];
 
 // ====== STATE ======
@@ -691,6 +697,9 @@ function parseGiftLines(lines) {
 }
 
 function parseDocxHtml(html, subject) {
+  const sConfig = SUBJECTS.find(s => s.name === subject);
+  const isFirstCorrect = sConfig && sConfig.parser === 'docx_first_correct';
+
   // Fix for soft newlines in Word combining tags into a single paragraph
   html = html.replace(/<br\s*\/?>/gi, '</p><p>');
 
@@ -708,10 +717,10 @@ function parseDocxHtml(html, subject) {
       if (node.nodeName === 'IMG') htmlContent = node.outerHTML;
       let unescapedHTML = htmlContent.replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
 
-      if (unescapedRaw.match(/^<\s*question\s*>/i)) {
+      if (unescapedRaw.match(/^<\s*question\s*\d*\s*>/i)) {
           if (currentQuestion && currentQuestion.question) questions.push(currentQuestion);
           currentQuestion = {
-              question: unescapedHTML.replace(/<\s*question\s*>/i, '').trim(),
+              question: unescapedHTML.replace(/<\s*question\s*\d*\s*>/i, '').trim(),
               questionNumber: qNum++,
               options: [],
               correctAnswers: [],
@@ -719,7 +728,23 @@ function parseDocxHtml(html, subject) {
           };
       } else if (unescapedRaw.match(/^<\s*variant\s*>/i)) {
           if (currentQuestion) {
-              currentQuestion.options.push(unescapedHTML.replace(/<\s*variant\s*>/i, '').trim());
+              let optText = unescapedHTML.replace(/<\s*variant\s*>/i, '').trim();
+              if (isFirstCorrect) {
+                  let rawOpt = unescapedRaw.replace(/^<\s*variant\s*>/i, '').trim();
+                  if (rawOpt.endsWith('+')) {
+                      let lastPlusIndex = optText.lastIndexOf('+');
+                      if (lastPlusIndex !== -1) {
+                          optText = optText.substring(0, lastPlusIndex) + optText.substring(lastPlusIndex + 1);
+                      }
+                      optText = optText.trim();
+                  }
+                  currentQuestion.options.push(optText);
+                  if (currentQuestion.options.length === 1) {
+                      currentQuestion.correctAnswers.push(0);
+                  }
+              } else {
+                  currentQuestion.options.push(optText);
+              }
           }
       } else if (unescapedRaw.match(/^<\s*variantright\s*>/i)) {
           if (currentQuestion) {
@@ -728,7 +753,11 @@ function parseDocxHtml(html, subject) {
           }
       } else {
           if (currentQuestion && unescapedHTML.trim() !== '') {
-              currentQuestion.question += '<br>' + unescapedHTML;
+              if (isFirstCorrect && unescapedRaw === '+') {
+                  // Ignore stray '+' on its own line
+              } else {
+                  currentQuestion.question += '<br>' + unescapedHTML;
+              }
           }
       }
   }
