@@ -485,7 +485,7 @@ const SUBJECTS = [
   { name: 'Инновации ИС',     file: 'Инно ИС для подготовки.docx',  icon: '💡',  desc: 'Инновационные информационные системы, подготовка', parser: 'gift' },
   { name: 'Java EE (SFT6312)',file: 'java_ee_questions.txt',         icon: '☕',  desc: 'JPA, Spring Boot, JAX-WS, JAX-RS, Security' },
   { name: 'Мультимедиа',      file: 'мультимедия.docx',              icon: '🎬',  desc: 'Коммуникация, модели, сигналы' },
-  { name: 'ОЗ',               file: 'пустой доком111.docx',          icon: '📄',  desc: 'Тест по Общественному здоровью', parser: 'docx_first_correct' },
+  { name: 'ОЗ',               file: 'ОЗ.txt',                        icon: '📄',  desc: 'Тест по Общественному здоровью', parser: 'txt_first_correct' },
 ];
 
 // ====== STATE ======
@@ -613,6 +613,8 @@ async function loadQuestionsFromFile(subject){
       const lines = Array.from(tmp.querySelectorAll('p')).map(p => p.textContent);
       console.log('[GIFT] total paragraphs:', lines.length);
       return parseGiftLines(lines);
+    } else if (s.parser === 'txt_first_correct') {
+      return parseTxtFirstCorrect(await resp.text());
     } else if (s.file.endsWith('.docx')) {
       const arrayBuffer = await resp.arrayBuffer();
       const result = await mammoth.convertToHtml({arrayBuffer: arrayBuffer});
@@ -768,6 +770,60 @@ function parseDocxHtml(html, subject) {
       }
   }
   if (currentQuestion && currentQuestion.question) questions.push(currentQuestion);
+  return questions.filter(q => q.options.length >= 2 && q.correctAnswers.length > 0);
+}
+
+function parseTxtFirstCorrect(text) {
+  const questions = [];
+  const lines = text.split('\n');
+  let currentQuestion = null;
+  let qNum = 1;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+    if (!line) continue;
+
+    let qMatch = line.match(/^<\s*question\s*\d*\s*>/i);
+    let vMatch = line.match(/^<\s*variant\s*>/i);
+
+    if (qMatch) {
+      if (currentQuestion && currentQuestion.options.length > 0) questions.push(currentQuestion);
+      currentQuestion = {
+        question: line.substring(qMatch[0].length).trim(),
+        questionNumber: qNum++,
+        options: [],
+        correctAnswers: [],
+        explanation: ''
+      };
+    } else if (vMatch) {
+      if (currentQuestion) {
+        let optText = line.substring(vMatch[0].length).trim();
+        if (optText.endsWith('+')) {
+            optText = optText.slice(0, -1).trim();
+        }
+        currentQuestion.options.push(optText);
+        if (currentQuestion.options.length === 1) {
+            currentQuestion.correctAnswers.push(0);
+        }
+      }
+    } else {
+      if (currentQuestion && line) {
+        if (line === '+') {
+            // ignore stray plus
+        } else {
+            if (currentQuestion.options.length === 0) {
+                currentQuestion.question += '<br>' + line;
+            } else {
+                if (line.endsWith('+')) {
+                    line = line.slice(0, -1).trim();
+                }
+                currentQuestion.options[currentQuestion.options.length - 1] += ' ' + line;
+            }
+        }
+      }
+    }
+  }
+  if (currentQuestion && currentQuestion.options.length > 0) questions.push(currentQuestion);
   return questions.filter(q => q.options.length >= 2 && q.correctAnswers.length > 0);
 }
 
