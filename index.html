@@ -446,9 +446,25 @@ body::before{
   <div class="modal-card">
     <div class="modal-logo">Q</div>
     <div class="modal-title" id="modalTitle">Выберите предмет</div>
-    <div class="modal-sub" id="modalSub">Выберите тему для тестирования</div>
+    <div class="modal-sub" id="modalSub">Медицина или IT</div>
 
-    <div id="subjectList">
+    <div id="categoryChoice">
+      <div class="subjects-grid">
+        <button class="subject-card" id="catMedBtn">
+          <div class="subj-icon">⚕️</div>
+          <div class="subj-name">Медицина (Med)</div>
+          <div class="subj-count">ОЗ, КИС Патан, Фарма и др.</div>
+        </button>
+        <button class="subject-card" id="catItBtn">
+          <div class="subj-icon">💻</div>
+          <div class="subj-name">IT (Информатика)</div>
+          <div class="subj-count">БД, Сети, ИС и др.</div>
+        </button>
+      </div>
+    </div>
+
+    <div id="subjectList" style="display:none">
+      <button id="backToCatBtn" class="btn btn-ghost" style="width:100%;margin-bottom:12px">← Назад к категориям</button>
       <div class="subjects-grid" id="subjectsGrid"></div>
     </div>
 
@@ -478,14 +494,17 @@ body::before{
 <script>
 // ====== CONFIG ======
 const SUBJECTS = [
-  { name: 'Управление БД',    file: 'База по управлению .docx',      icon: '🗄️',  desc: 'SQL, нормализация, реляционная алгебра' },
-  { name: 'Сети CISCO',       file: 'CISCO Coursera Quiz.docx',      icon: '🌐',  desc: 'CCNA, маршрутизация, OSI, Packet Tracer' },
-  { name: 'Машинное обучение',file: 'ml_questions.txt',              icon: '🤖',  desc: 'K-NN, регрессия, нейросети, классификация' },
-  { name: 'Кибербезопасность',file: 'cybersecurity_questions.txt',   icon: '🔐',  desc: 'SIEM, угрозы, OSINT, защита данных' },
-  { name: 'Инновации ИС',     file: 'Инно ИС для подготовки.docx',  icon: '💡',  desc: 'Инновационные информационные системы, подготовка', parser: 'gift' },
-  { name: 'Java EE (SFT6312)',file: 'java_ee_questions.txt',         icon: '☕',  desc: 'JPA, Spring Boot, JAX-WS, JAX-RS, Security' },
-  { name: 'Мультимедиа',      file: 'мультимедия.docx',              icon: '🎬',  desc: 'Коммуникация, модели, сигналы' },
-  { name: 'ОЗ',               file: 'ОЗ.txt',                        icon: '📄',  desc: 'Тест по Общественному здоровью', parser: 'txt_first_correct' },
+  { name: 'Управление БД',    category: 'IT', file: 'База по управлению .docx',      icon: '🗄️',  desc: 'SQL, нормализация, реляционная алгебра' },
+  { name: 'Сети CISCO',       category: 'IT', file: 'CISCO Coursera Quiz.docx',      icon: '🌐',  desc: 'CCNA, маршрутизация, OSI, Packet Tracer' },
+  { name: 'Машинное обучение',category: 'IT', file: 'ml_questions.txt',              icon: '🤖',  desc: 'K-NN, регрессия, нейросети, классификация' },
+  { name: 'Кибербезопасность',category: 'IT', file: 'cybersecurity_questions.txt',   icon: '🔐',  desc: 'SIEM, угрозы, OSINT, защита данных' },
+  { name: 'Инновации ИС',     category: 'IT', file: 'Инно ИС для подготовки.docx',  icon: '💡',  desc: 'Инновационные информационные системы, подготовка', parser: 'gift' },
+  { name: 'Java EE (SFT6312)',category: 'IT', file: 'java_ee_questions.txt',         icon: '☕',  desc: 'JPA, Spring Boot, JAX-WS, JAX-RS, Security' },
+  { name: 'Мультимедиа',      category: 'IT', file: 'мультимедия.docx',              icon: '🎬',  desc: 'Коммуникация, модели, сигналы' },
+  { name: 'ОЗ',               category: 'Med', file: 'ОЗ.txt',                        icon: '📄',  desc: 'Тест по Общественному здоровью', parser: 'txt_first_correct' },
+  { name: 'КИС Патан',        category: 'Med', file: 'КИС Патан.txt',                 icon: '🔬',  desc: 'Патологическая анатомия', parser: 'txt_mixed' },
+  { name: 'КИС фарма',        category: 'Med', file: 'КИС фарма.txt',                 icon: '💊',  desc: 'Фармакология', parser: 'txt_mixed' },
+  { name: 'Патфиз КИС',       category: 'Med', file: 'Патфиз КИС.txt',                icon: '🧬',  desc: 'Патологическая физиология', parser: 'txt_mixed' },
 ];
 
 // ====== STATE ======
@@ -544,16 +563,35 @@ const qtext=document.getElementById('qtext'),
       themeBtn=document.getElementById('themeBtn'),
       testTitle=document.getElementById('testTitle'),
       testSubtitle=document.getElementById('testSubtitle'),
-      confirmModal=document.getElementById('confirmModal'),
       confirmCancelBtn=document.getElementById('confirmCancelBtn'),
       confirmFinishBtn=document.getElementById('confirmFinishBtn'),
       questionCard=document.getElementById('questionCard'),
-      subjectsGrid=document.getElementById('subjectsGrid');
+      subjectsGrid=document.getElementById('subjectsGrid'),
+      categoryChoice=document.getElementById('categoryChoice'),
+      backToCatBtn=document.getElementById('backToCatBtn'),
+      catMedBtn=document.getElementById('catMedBtn'),
+      catItBtn=document.getElementById('catItBtn');
 
 // ====== SUBJECT SELECTION ======
 function initSubjectSelection(){
+  catMedBtn.addEventListener('click', () => showCategorySubjects('Med'));
+  catItBtn.addEventListener('click', () => showCategorySubjects('IT'));
+  backToCatBtn.addEventListener('click', () => {
+    subjectListEl.style.display = 'none';
+    categoryChoice.style.display = 'block';
+    modalTitle.textContent = 'Выберите направление';
+    modalSub.textContent = 'Медицина или IT';
+  });
+}
+
+function showCategorySubjects(cat) {
+  categoryChoice.style.display = 'none';
+  subjectListEl.style.display = 'block';
+  modalTitle.textContent = cat === 'Med' ? 'Медицина (Med)' : 'IT (Информатика)';
+  modalSub.textContent = 'Выберите тест';
+  
   subjectsGrid.innerHTML = '';
-  SUBJECTS.forEach(s => {
+  SUBJECTS.filter(s => s.category === cat).forEach(s => {
     const btn = document.createElement('button');
     btn.className = 'subject-card';
     btn.dataset.subject = s.name;
@@ -615,6 +653,8 @@ async function loadQuestionsFromFile(subject){
       return parseGiftLines(lines);
     } else if (s.parser === 'txt_first_correct') {
       return parseTxtFirstCorrect(await resp.text());
+    } else if (s.parser === 'txt_mixed') {
+      return parseTxtMixed(await resp.text());
     } else if (s.file.endsWith('.docx')) {
       const arrayBuffer = await resp.arrayBuffer();
       const result = await mammoth.convertToHtml({arrayBuffer: arrayBuffer});
@@ -626,6 +666,68 @@ async function loadQuestionsFromFile(subject){
     console.error('Ошибка загрузки:', e);
     return [];
   }
+}
+
+// ====== TXT MIXED FORMAT PARSER ======
+function parseTxtMixed(text) {
+  const questions = [];
+  const lines = text.split('\n');
+  let currentQuestion = null;
+  let qNum = 1;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+    if (!line) continue;
+
+    let qMatch = line.match(/^(\?|<\s*question\s*\d*\s*>)(.*)/i);
+    let plusMatch = line.match(/^\+(.*)/);
+    let minusMatch = line.match(/^-(.*)/);
+    let tagMatch = line.match(/^<\s*(variant|answer)\s*>(.*)/i);
+
+    if (qMatch) {
+      if (currentQuestion && currentQuestion.options.length > 0) questions.push(currentQuestion);
+      
+      let qText = qMatch[2].trim();
+      qText = qText.replace(/^\.\.\s*/, '');
+      currentQuestion = {
+        question: qText,
+        questionNumber: qNum++,
+        options: [],
+        correctAnswers: [],
+        explanation: '',
+        isFirstVariantMode: !!line.match(/^<\s*question\s*\d*\s*>/i)
+      };
+    } else if (currentQuestion) {
+      let isCorrect = false;
+      let optText = line;
+      
+      if (plusMatch) {
+        isCorrect = true;
+        optText = plusMatch[1];
+      } else if (minusMatch) {
+        optText = minusMatch[1];
+        if (optText.endsWith('+')) {
+          isCorrect = true;
+          optText = optText.slice(0, -1);
+        }
+      } else if (tagMatch) {
+        optText = tagMatch[2];
+        if (currentQuestion.isFirstVariantMode && currentQuestion.options.length === 0) {
+          isCorrect = true;
+        }
+      } else {
+        continue;
+      }
+      
+      optText = optText.trim();
+      currentQuestion.options.push(optText);
+      if (isCorrect) {
+        currentQuestion.correctAnswers.push(currentQuestion.options.length - 1);
+      }
+    }
+  }
+  if (currentQuestion && currentQuestion.options.length > 0) questions.push(currentQuestion);
+  return questions.filter(q => q.options.length >= 2 && q.correctAnswers.length > 0);
 }
 
 // ====== GIFT FORMAT PARSER (Moodle) ======
@@ -727,8 +829,10 @@ function parseDocxHtml(html, subject) {
 
       if (unescapedRaw.match(/^<\s*question\s*\d*\s*>/i)) {
           if (currentQuestion && currentQuestion.question) questions.push(currentQuestion);
+          let qText = unescapedHTML.replace(/<\s*question\s*\d*\s*>/i, '').trim();
+          qText = qText.replace(/^\.\.\s*/, '');
           currentQuestion = {
-              question: unescapedHTML.replace(/<\s*question\s*\d*\s*>/i, '').trim(),
+              question: qText,
               questionNumber: qNum++,
               options: [],
               correctAnswers: [],
@@ -1044,8 +1148,8 @@ function finishTest(){ hideConfirmFinishModal(); showResults(); }
 function showSubjectSelection(){
   resultsEl.style.display='none'; questionCard.style.display='none';
   testTitle.textContent='QuizLab'; testSubtitle.textContent='Выберите предмет для начала';
-  subjectListEl.style.display='block'; modeChoiceEl.style.display='none';
-  modalTitle.textContent='Выберите предмет'; modalSub.textContent='Выберите тему для тестирования';
+  categoryChoice.style.display='block'; subjectListEl.style.display='none'; modeChoiceEl.style.display='none';
+  modalTitle.textContent='Выберите направление'; modalSub.textContent='Медицина или IT';
   startModal.style.display='flex';
   selectedSubject='';
   document.querySelectorAll('.subject-card').forEach(b=>b.classList.remove('selected'));
@@ -1097,8 +1201,9 @@ backToSubjectsBtn.addEventListener('click',showSubjectSelection);
 backToSubjectsBtn2.addEventListener('click',()=>{
   subjectListEl.style.display='block';
   modeChoiceEl.style.display='none';
-  modalTitle.textContent='Выберите предмет';
-  modalSub.textContent='Выберите тему для тестирования';
+  const cat = SUBJECTS.find(s => s.name === selectedSubject)?.category || 'IT';
+  modalTitle.textContent = cat === 'Med' ? 'Медицина (Med)' : 'IT (Информатика)';
+  modalSub.textContent='Выберите тест';
 });
 
 themeBtn.addEventListener('click',()=>{ document.documentElement.classList.toggle('light'); });
